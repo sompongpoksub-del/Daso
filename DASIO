@@ -1,0 +1,536 @@
+-- Valen Hub - สคริปต์แมพนี้
+-- ใช้ Rayfield UI | เมนูภาษาไทย
+-- ไม่มีโค้ดเสกปืน
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Load Rayfield UI
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Valen Hub | สคริปต์แมพนี้",
+    LoadingTitle = "กำลังโหลด...",
+    LoadingSubtitle = "by Valen",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "ValenHubConfig",
+        FileName = "Config"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "",
+        RememberJoins = false
+    },
+    KeySystem = false
+})
+
+-- ========== แท็บ: ผู้เล่น ==========
+local PlayerTab = Window:CreateTab("ผู้เล่น", "user")
+
+local WalkSpeedSlider = PlayerTab:CreateSlider({
+    Name = "ความเร็วการเดิน",
+    Range = {16, 500},
+    Increment = 1,
+    Suffix = "",
+    CurrentValue = 16,
+    Flag = "WalkSpeed",
+    Callback = function(Value)
+        if Humanoid then
+            Humanoid.WalkSpeed = Value
+        end
+    end
+})
+
+local JumpPowerSlider = PlayerTab:CreateSlider({
+    Name = "พลังกระโดด",
+    Range = {50, 500},
+    Increment = 1,
+    Suffix = "",
+    CurrentValue = 50,
+    Flag = "JumpPower",
+    Callback = function(Value)
+        if Humanoid then
+            Humanoid.JumpPower = Value
+        end
+    end
+})
+
+local InfiniteJumpToggle = PlayerTab:CreateToggle({
+    Name = "กระโดดกลางอากาศ",
+    CurrentValue = false,
+    Flag = "InfiniteJump",
+    Callback = function(Value)
+        _G.InfiniteJump = Value
+    end
+})
+
+UserInputService.JumpRequest:Connect(function()
+    if _G.InfiniteJump and Humanoid then
+        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+local NoclipToggle = PlayerTab:CreateToggle({
+    Name = "ทะลุกำแพง (Noclip)",
+    CurrentValue = false,
+    Flag = "Noclip",
+    Callback = function(Value)
+        _G.Noclip = Value
+    end
+})
+
+RunService.Stepped:Connect(function()
+    if _G.Noclip and Character then
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+local FlyToggle = PlayerTab:CreateToggle({
+    Name = "บิน",
+    CurrentValue = false,
+    Flag = "Fly",
+    Callback = function(Value)
+        _G.Fly = Value
+        if Value then
+            local BodyGyro = Instance.new("BodyGyro")
+            local BodyVelocity = Instance.new("BodyVelocity")
+            BodyGyro.P = 9e4
+            BodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+            BodyGyro.CFrame = HumanoidRootPart.CFrame
+            BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            BodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            BodyGyro.Parent = HumanoidRootPart
+            BodyVelocity.Parent = HumanoidRootPart
+            _G.FlyGyro = BodyGyro
+            _G.FlyVelocity = BodyVelocity
+        else
+            if _G.FlyGyro then _G.FlyGyro:Destroy() end
+            if _G.FlyVelocity then _G.FlyVelocity:Destroy() end
+        end
+    end
+})
+
+UserInputService.InputBegan:Connect(function(input)
+    if _G.Fly and input.KeyCode == Enum.KeyCode.Space then
+        _G.FlyVelocity.Velocity = Vector3.new(0, 50, 0)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if _G.Fly and input.KeyCode == Enum.KeyCode.Space then
+        _G.FlyVelocity.Velocity = Vector3.new(0, 0, 0)
+    end
+end)
+
+local GodModeToggle = PlayerTab:CreateToggle({
+    Name = "อมตะ",
+    CurrentValue = false,
+    Flag = "GodMode",
+    Callback = function(Value)
+        _G.GodMode = Value
+        if Value and Humanoid then
+            Humanoid.MaxHealth = math.huge
+            Humanoid.Health = math.huge
+        end
+    end
+})
+
+-- ========== แท็บ: ESP ==========
+local ESPTab = Window:CreateTab("มองทะลุ", "eye")
+
+local ESPToggle = ESPTab:CreateToggle({
+    Name = "เปิด ESP ผู้เล่น",
+    CurrentValue = false,
+    Flag = "ESP",
+    Callback = function(Value)
+        _G.ESP = Value
+        if Value then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight"
+                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = player.Character
+
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Name = "ESPName"
+                    billboard.Size = UDim2.new(0, 200, 0, 50)
+                    billboard.StudsOffset = Vector3.new(0, 3, 0)
+                    billboard.AlwaysOnTop = true
+                    local textLabel = Instance.new("TextLabel")
+                    textLabel.Size = UDim2.new(1, 0, 1, 0)
+                    textLabel.BackgroundTransparency = 1
+                    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    textLabel.TextStrokeTransparency = 0
+                    textLabel.Text = player.Name
+                    textLabel.Parent = billboard
+                    billboard.Parent = player.Character:FindFirstChild("Head") or player.Character
+                end
+            end
+        else
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Character then
+                    for _, obj in pairs(player.Character:GetDescendants()) do
+                        if obj.Name == "ESPHighlight" or obj.Name == "ESPName" then
+                            obj:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+    end
+})
+
+local ItemESPToggle = ESPTab:CreateToggle({
+    Name = "ESP ไอเทม",
+    CurrentValue = false,
+    Flag = "ItemESP",
+    Callback = function(Value)
+        _G.ItemESP = Value
+        if Value then
+            for _, item in pairs(Workspace:GetDescendants()) do
+                if item:IsA("Tool") or item:IsA("Model") and item:FindFirstChild("Handle") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ItemESP"
+                    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+                    highlight.Parent = item
+                end
+            end
+        else
+            for _, item in pairs(Workspace:GetDescendants()) do
+                for _, obj in pairs(item:GetDescendants()) do
+                    if obj.Name == "ItemESP" then
+                        obj:Destroy()
+                    end
+                end
+            end
+        end
+    end
+})
+
+-- ========== แท็บ: วาร์ป ==========
+local TeleportTab = Window:CreateTab("วาร์ป", "map-pin")
+
+local function getPlayerList()
+    local list = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(list, player.Name)
+        end
+    end
+    return list
+end
+
+local PlayerDropdown = TeleportTab:CreateDropdown({
+    Name = "วาร์ปไปหาผู้เล่น",
+    Options = getPlayerList(),
+    CurrentOption = "",
+    Flag = "TeleportPlayer",
+    Callback = function(Option)
+        local target = Players:FindFirstChild(Option)
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+        end
+    end
+})
+
+TeleportTab:CreateButton({
+    Name = "รีเฟรชรายชื่อผู้เล่น",
+    Callback = function()
+        PlayerDropdown:Refresh(getPlayerList(), true)
+    end
+})
+
+TeleportTab:CreateButton({
+    Name = "วาร์ปไป Spawn",
+    Callback = function()
+        if Workspace:FindFirstChild("SpawnLocation") then
+            HumanoidRootPart.CFrame = Workspace.SpawnLocation.CFrame + Vector3.new(0, 5, 0)
+        end
+    end
+})
+
+-- ========== แท็บ: มุมมอง ==========
+local VisualTab = Window:CreateTab("มุมมอง", "sun")
+
+local FullBrightToggle = VisualTab:CreateToggle({
+    Name = "สว่างทั้งแมพ",
+    CurrentValue = false,
+    Flag = "FullBright",
+    Callback = function(Value)
+        if Value then
+            _G.OldBrightness = Lighting.Brightness
+            _G.OldClockTime = Lighting.ClockTime
+            _G.OldFogEnd = Lighting.FogEnd
+            _G.OldGlobalShadows = Lighting.GlobalShadows
+            Lighting.Brightness = 10
+            Lighting.ClockTime = 14
+            Lighting.FogEnd = 100000
+            Lighting.GlobalShadows = false
+        else
+            Lighting.Brightness = _G.OldBrightness or 1
+            Lighting.ClockTime = _G.OldClockTime or 12
+            Lighting.FogEnd = _G.OldFogEnd or 1000
+            Lighting.GlobalShadows = _G.OldGlobalShadows or true
+        end
+    end
+})
+
+local NoFogToggle = VisualTab:CreateToggle({
+    Name = "ปิดหมอก",
+    CurrentValue = false,
+    Flag = "NoFog",
+    Callback = function(Value)
+        if Value then
+            Lighting.FogEnd = 100000
+        else
+            Lighting.FogEnd = 1000
+        end
+    end
+})
+
+local FOVSlider = VisualTab:CreateSlider({
+    Name = "มุมมองกล้อง (FOV)",
+    Range = {30, 120},
+    Increment = 1,
+    Suffix = "",
+    CurrentValue = 70,
+    Flag = "FOV",
+    Callback = function(Value)
+        Workspace.CurrentCamera.FieldOfView = Value
+    end
+})
+
+local ThirdPersonToggle = VisualTab:CreateToggle({
+    Name = "มุมมองบุคคลที่ 3",
+    CurrentValue = false,
+    Flag = "ThirdPerson",
+    Callback = function(Value)
+        if Value then
+            LocalPlayer.CameraMode = Enum.CameraMode.Classic
+            Workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+        else
+            LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+        end
+    end
+})
+
+-- ========== แท็บ: อาวุธ ==========
+local WeaponTab = Window:CreateTab("อาวุธ", "sword")
+
+WeaponTab:CreateButton({
+    Name = "รีโหลดอาวุธ",
+    Callback = function()
+        local tool = Character:FindFirstChildOfClass("Tool")
+        if tool then
+            local reloadEvent = tool:FindFirstChild("Reload") or tool:FindFirstChild("ReloadEvent")
+            if reloadEvent and reloadEvent:IsA("RemoteEvent") then
+                reloadEvent:FireServer()
+            end
+        end
+    end
+})
+
+WeaponTab:CreateButton({
+    Name = "เต็มแม็กกาซีน",
+    Callback = function()
+        local tool = Character:FindFirstChildOfClass("Tool")
+        if tool then
+            local ammo = tool:FindFirstChild("Ammo") or tool:FindFirstChild("CurrentAmmo")
+            local maxAmmo = tool:FindFirstChild("MaxAmmo") or tool:FindFirstChild("AmmoMax")
+            if ammo and maxAmmo then
+                ammo.Value = maxAmmo.Value
+            end
+        end
+    end
+})
+
+local NoRecoilToggle = WeaponTab:CreateToggle({
+    Name = "ไม่ดีด (No Recoil)",
+    CurrentValue = false,
+    Flag = "NoRecoil",
+    Callback = function(Value)
+        _G.NoRecoil = Value
+        local recoilEvent = ReplicatedStorage:FindFirstChild("recoilViewmodel")
+        if recoilEvent and recoilEvent:IsA("BindableEvent") then
+            if Value then
+                _G.OldRecoil = recoilEvent.Event:Connect(function() end)
+            else
+                if _G.OldRecoil then
+                    _G.OldRecoil:Disconnect()
+                end
+            end
+        end
+    end
+})
+
+local RapidFireToggle = WeaponTab:CreateToggle({
+    Name = "ยิงเร็ว",
+    CurrentValue = false,
+    Flag = "RapidFire",
+    Callback = function(Value)
+        _G.RapidFire = Value
+        local tool = Character:FindFirstChildOfClass("Tool")
+        if tool then
+            local fireRate = tool:FindFirstChild("FireRate") or tool:FindFirstChild("RPM")
+            if fireRate then
+                if Value then
+                    _G.OldFireRate = fireRate.Value
+                    fireRate.Value = 0.01
+                else
+                    fireRate.Value = _G.OldFireRate or fireRate.Value
+                end
+            end
+        end
+    end
+})
+
+-- ========== แท็บ: ผู้เล่นอื่น ==========
+local OthersTab = Window:CreateTab("ผู้เล่นอื่น", "users")
+
+local KillAllToggle = OthersTab:CreateToggle({
+    Name = "ฆ่าทุกคน (Melee)",
+    CurrentValue = false,
+    Flag = "KillAll",
+    Callback = function(Value)
+        _G.KillAll = Value
+        if Value then
+            while _G.KillAll do
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") then
+                        local targetHRP = player.Character:FindFirstChild("HumanoidRootPart")
+                        if targetHRP then
+                            HumanoidRootPart.CFrame = targetHRP.CFrame
+                            local tool = Character:FindFirstChildOfClass("Tool")
+                            if tool then
+                                local attackEvent = tool:FindFirstChild("Attack") or tool:FindFirstChild("Melee")
+                                if attackEvent and attackEvent:IsA("RemoteEvent") then
+                                    attackEvent:FireServer(player.Character)
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(0.5)
+            end
+        end
+    end
+})
+
+local BringAllToggle = OthersTab:CreateToggle({
+    Name = "ดึงทุกคนมาหา",
+    CurrentValue = false,
+    Flag = "BringAll",
+    Callback = function(Value)
+        _G.BringAll = Value
+        if Value then
+            while _G.BringAll do
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        player.Character.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
+                    end
+                end
+                task.wait(0.1)
+            end
+        end
+    end
+})
+
+OthersTab:CreateButton({
+    Name = "ดึงผู้เล่นทั้งหมด",
+    Callback = function()
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
+            end
+        end
+    end
+})
+
+-- ========== แท็บ: อื่นๆ ==========
+local MiscTab = Window:CreateTab("อื่นๆ", "settings")
+
+MiscTab:CreateButton({
+    Name = "รีเซ็ตตัวละคร",
+    Callback = function()
+        Humanoid.Health = 0
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "เติมเลือด",
+    Callback = function()
+        if Humanoid then
+            Humanoid.Health = Humanoid.MaxHealth
+        end
+    end
+})
+
+local AntiAFKToggle = MiscTab:CreateToggle({
+    Name = "ป้องกัน AFK",
+    CurrentValue = false,
+    Flag = "AntiAFK",
+    Callback = function(Value)
+        _G.AntiAFK = Value
+        if Value then
+            local vu = game:GetService("VirtualUser")
+            LocalPlayer.Idled:Connect(function()
+                if _G.AntiAFK then
+                    vu:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+                    task.wait(1)
+                    vu:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+                end
+            end)
+        end
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "ลบเอฟเฟกต์หน้าจอ",
+    Callback = function()
+        for _, effect in pairs(Lighting:GetChildren()) do
+            if effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") then
+                effect:Destroy()
+            end
+        end
+        for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+            if gui:IsA("BlurEffect") or gui.Name:lower():find("damage") or gui.Name:lower():find("hit") then
+                gui:Destroy()
+            end
+        end
+    end
+})
+
+-- อัปเดต Character เมื่อ Respawn
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    Character = newChar
+    Humanoid = newChar:WaitForChild("Humanoid")
+    HumanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+Rayfield:Notify({
+    Title = "โหลดสำเร็จ",
+    Content = "Valen Hub พร้อมใช้งานแล้ว!",
+    Duration = 5,
+    Image = "check-circle"
+})
